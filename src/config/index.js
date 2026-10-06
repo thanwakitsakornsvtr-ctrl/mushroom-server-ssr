@@ -12,10 +12,25 @@ function required(name, fallback) {
 const nodeEnv = process.env.NODE_ENV || 'development';
 const isProduction = nodeEnv === 'production';
 
-const deviceApiKey = required('DEVICE_API_KEY', isProduction ? undefined : 'dev-local-key');
-if (isProduction && deviceApiKey === 'dev-local-key') {
-  throw new Error('DEVICE_API_KEY must be set to a non-default value in production');
+const deviceApiKey = required('DEVICE_API_KEY', isProduction ? undefined : 'dev-local-key').trim();
+if (!deviceApiKey) {
+  throw new Error('DEVICE_API_KEY must not be empty');
 }
+if (isProduction && ['dev-local-key', 'change-me-to-a-long-random-string'].includes(deviceApiKey)) {
+  throw new Error('DEVICE_API_KEY must be set to a non-placeholder value in production');
+}
+
+// A numeric value is a hop count; an address/subnet list is also supported.
+// Never trust every proxy: that allows clients to forge rate-limit identities.
+const trustProxyValue = (process.env.TRUST_PROXY || 'false').trim();
+if (trustProxyValue === 'true') {
+  throw new Error('TRUST_PROXY must be false, a hop count, or trusted addresses/subnets');
+}
+const trustProxy = trustProxyValue === 'false'
+  ? false
+  : /^\d+$/.test(trustProxyValue)
+    ? Number(trustProxyValue)
+    : trustProxyValue.split(',').map((value) => value.trim()).filter(Boolean);
 
 const dbPath = process.env.DB_PATH
   || (process.env.RAILWAY_VOLUME_MOUNT_PATH
@@ -25,8 +40,9 @@ const dbPath = process.env.DB_PATH
 module.exports = {
   nodeEnv,
   isProduction,
-  port: Number(process.env.PORT) || 4100,
+  port: Number(process.env.PORT) || 8083,
   deviceApiKey,
+  trustProxy,
   corsOrigin: process.env.CORS_ORIGIN || '*',
   // ใช้สร้าง canonical / og:url / ลิงก์รูปแชร์ — ตั้งเป็นโดเมนจริงตอน deploy
   siteUrl: (process.env.SITE_URL || '').replace(/\/+$/, ''),

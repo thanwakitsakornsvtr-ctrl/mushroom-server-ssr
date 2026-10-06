@@ -17,6 +17,7 @@ const systemRoutes = require('./routes/system.routes');
 const app = express();
 
 app.disable('x-powered-by');
+app.set('trust proxy', config.trustProxy);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 // static ถูก cache 1 วันใน production — ต่อ ?v= ท้าย URL ของ css/js ให้เปลี่ยนทุกครั้งที่ server
@@ -25,6 +26,9 @@ app.locals.assetVersion = Date.now().toString(36);
 app.locals.site = site;
 
 app.use(helmet({
+  // The same production container is also served over HTTP at localhost:8083.
+  // Nginx handles HTTPS redirects; HSTS is added only to HTTPS requests below.
+  strictTransportSecurity: false,
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -34,9 +38,12 @@ app.use(helmet({
       workerSrc: ["'self'", 'blob:'],
       imgSrc: ["'self'", 'data:'],
       connectSrc: ["'self'"],
+      upgradeInsecureRequests: null,
     },
   },
 }));
+const hsts = helmet.strictTransportSecurity();
+app.use((req, res, next) => req.secure ? hsts(req, res, next) : next());
 app.use(cors({ origin: config.corsOrigin === '*' ? true : config.corsOrigin.split(',') }));
 app.use(compression({
   filter: (req, res) => {

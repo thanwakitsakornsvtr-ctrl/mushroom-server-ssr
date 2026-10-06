@@ -11,6 +11,11 @@ process.env.DEVICE_API_KEY = 'test-only-key';
 process.env.NODE_ENV = 'test';
 process.env.LOG_LEVEL = 'error';
 process.env.SITE_URL = 'https://example.test';
+process.env.TRUST_PROXY = '1';
+// Keep the no-contact fixture independent of the user's local .env examples.
+for (const key of ['FARM_ADDRESS', 'FARM_PHONE', 'FARM_LINE', 'FARM_FACEBOOK_URL', 'FARM_MAP_URL']) {
+  process.env[key] = '';
+}
 
 const app = require('../src/app');
 
@@ -92,4 +97,21 @@ test('dashboard shows live data after a reading is posted', async () => {
   const { body } = await get('/dashboard');
   assert.match(body, /ออนไลน์/);
   assert.match(body, /id="chart-summary"/);
+});
+
+test('local HTTP assets stay on HTTP, while proxied HTTPS receives HSTS', async () => {
+  const http = await get('/');
+  assert.doesNotMatch(http.res.headers.get('content-security-policy'), /upgrade-insecure-requests/);
+  assert.equal(http.res.headers.get('strict-transport-security'), null);
+  const https = await get('/', { headers: { 'x-forwarded-proto': 'https' } });
+  assert.match(https.res.headers.get('strict-transport-security'), /max-age=/);
+});
+
+test('rate limiting uses the client IP forwarded by the trusted proxy', async () => {
+  const headers = { 'x-forwarded-for': '203.0.113.10' };
+  for (let i = 0; i < 120; i++) {
+    assert.equal((await get('/api/sensors/latest', { headers })).res.status, 200);
+  }
+  assert.equal((await get('/api/sensors/latest', { headers })).res.status, 429);
+  assert.equal((await get('/api/sensors/latest', { headers: { 'x-forwarded-for': '203.0.113.11' } })).res.status, 200);
 });

@@ -1,5 +1,12 @@
 node_modules
 data
 logs
-.env
+.env*
+.git
+.agents
+.codex
+.aws
+backups
+test
+deploy
 *.log

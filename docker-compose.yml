@@ -1,0 +1,50 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: server-ssr:vps
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 15s
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:8083:8083"
+    environment:
+      NODE_ENV: production
+      PORT: "8083"
+      TZ: Asia/Bangkok
+      DEVICE_API_KEY: "${DEVICE_API_KEY:?Set DEVICE_API_KEY in .env before starting}"
+      SITE_URL: "${SITE_URL:-https://mushroom.kitsakorn.com}"
+      CORS_ORIGIN: "${CORS_ORIGIN:-https://mushroom.kitsakorn.com}"
+      # One Nginx proxy on the host; it replaces forwarded headers.
+      TRUST_PROXY: "${TRUST_PROXY:-1}"
+      DB_PATH: /app/data/mushroom.db
+      DATA_RETENTION_DAYS: "${DATA_RETENTION_DAYS:-30}"
+      DEVICE_OFFLINE_SECONDS: "${DEVICE_OFFLINE_SECONDS:-60}"
+      PLUG_STALE_SECONDS: "${PLUG_STALE_SECONDS:-90}"
+      READING_BROADCAST_MS: "${READING_BROADCAST_MS:-5000}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      FARM_ADDRESS: "${FARM_ADDRESS:-}"
+      FARM_PHONE: "${FARM_PHONE:-}"
+      FARM_LINE: "${FARM_LINE:-}"
+      FARM_FACEBOOK_URL: "${FARM_FACEBOOK_URL:-}"
+      FARM_MAP_URL: "${FARM_MAP_URL:-}"
+    volumes:
+      - mushroom_data:/app/data
+      - mushroom_logs:/app/logs
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mushroom_data:
+  mushroom_logs:

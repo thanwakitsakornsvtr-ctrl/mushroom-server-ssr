@@ -13,6 +13,9 @@ node_modules/
 .env.production
 .env.staging
 
+# Database backups contain runtime data
+backups/
+
 # SQLite database (runtime data — ไม่ใช่ source code)
 data/*.db
 data/*.db-journal

@@ -5,7 +5,8 @@ const HEARTBEAT_MS = 15000;
 class SseHub {
   constructor() {
     this.clients = new Set();
-    setInterval(() => this.heartbeat(), HEARTBEAT_MS).unref();
+    this.heartbeatTimer = setInterval(() => this.heartbeat(), HEARTBEAT_MS);
+    this.heartbeatTimer.unref();
   }
 
   addClient(res) {
@@ -29,6 +30,12 @@ class SseHub {
     for (const res of this.clients) {
       res.write(': heartbeat\n\n');
     }
+  }
+
+  close() {
+    clearInterval(this.heartbeatTimer);
+    for (const res of this.clients) res.end();
+    this.clients.clear();
   }
 }
 

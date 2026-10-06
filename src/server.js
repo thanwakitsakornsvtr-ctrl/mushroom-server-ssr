@@ -2,6 +2,8 @@ const app = require('./app');
 const config = require('./config');
 const logger = require('./utils/logger');
 const scheduler = require('./services/scheduler');
+const sseHub = require('./services/sseHub');
+const db = require('./db');
 
 const server = app.listen(config.port, () => {
   logger.info(`Mushroom dashboard server listening on port ${config.port}`, {
@@ -15,18 +17,25 @@ const server = app.listen(config.port, () => {
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;
 
-scheduler.start();
+const schedulerTimer = scheduler.start();
+let shuttingDown = false;
 
 function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
   logger.info(`Received ${signal}, shutting down gracefully...`);
+  clearInterval(schedulerTimer);
+  sseHub.close();
   server.close((err) => {
     if (err) {
       logger.error('Error during shutdown', { error: err.message });
       process.exit(1);
     }
+    db.close();
     logger.info('Server closed. Bye.');
     process.exit(0);
   });
+  server.closeIdleConnections();
 
   setTimeout(() => {
     logger.error('Forced shutdown after timeout');
